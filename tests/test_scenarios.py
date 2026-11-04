@@ -219,3 +219,23 @@ def test_inspect_top_k_folder_and_missing_train(tmp_path, classes5):
     (empty / "train" / "a.png").write_bytes(b"")
     r = t.inspect_competition(str(empty))
     assert r["support"] == "not supported" and r["files"]["n_media_files"] == 1
+
+
+# ── output safety ─────────────────────────────────────────────────────────
+@pytest.mark.parametrize("name", ["notes.txt", "settings.json", "submission"])
+def test_tools_only_write_csv_files(tmp_path, customers, name):
+    tr = _csv(tmp_path / "tr.csv", customers.iloc[:3000])
+    te = _csv(tmp_path / "te.csv", customers.iloc[3000:].drop(columns="y"))
+    with pytest.raises(ValueError, match=".csv"):
+        t.fit_predict(tr, te, target="y", id_col="id", out_path=str(tmp_path / name))
+    assert not (tmp_path / name).exists()
+
+
+def test_tools_refuse_to_write_through_a_symlink(tmp_path, customers):
+    target = tmp_path / "important.csv"
+    target.write_text("keep me")
+    link = tmp_path / "oof.csv"
+    link.symlink_to(target)
+    with pytest.raises(ValueError, match="symlink"):
+        t.cv_baseline(_csv(tmp_path / "tr.csv", customers), target="y", id_col="id", n_splits=3, oof_path=str(link))
+    assert target.read_text() == "keep me"

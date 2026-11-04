@@ -72,6 +72,18 @@ def _native(x: Any) -> Any:
     return x
 
 
+def _output_path(path: str) -> Path:
+    """Tools only write CSV files, never through a symlink and never into a missing folder."""
+    p = Path(path).expanduser()
+    if p.suffix.lower() != ".csv":
+        raise ValueError(f"Output must be a .csv file: {p}")
+    if p.is_symlink():
+        raise ValueError(f"Refusing to write through a symlink: {p}")
+    if not p.parent.is_dir():
+        raise ValueError(f"Folder does not exist: {p.parent}")
+    return p
+
+
 def load_table(path: str, max_rows: int | None = None, seed: int = 0) -> pd.DataFrame:
     """Read a CSV or Parquet file; optionally keep a random sample of `max_rows` rows."""
     p = Path(path).expanduser()
@@ -970,7 +982,7 @@ def cv_baseline(train_path: str, target: str, id_col: str | None = None, task: s
         else:
             for j, c in enumerate(classes):
                 o[f"oof_{c}"] = oof[:, j]
-        o.to_csv(oof_path, index=False)
+        o.to_csv(_output_path(oof_path), index=False)
     return _native(out)
 
 
@@ -1133,6 +1145,6 @@ def fit_predict(train_path: str, test_path: str, target: str, id_col: str, out_p
         kind = "probability" if task == "binary" else "value"
     if ss is not None:
         out = out[[c for c in ss.columns if c in out.columns]]
-    out.to_csv(out_path, index=False)
+    out.to_csv(_output_path(out_path), index=False)
     return _native({"task": task, "rows_predicted": len(te), "features_used": len(feats), "written_as": kind,
                     "columns": list(out.columns), "trained_on_log1p": log_target, "out_path": out_path})

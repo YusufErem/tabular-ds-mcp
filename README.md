@@ -110,11 +110,18 @@ for call in plan["suggested_calls"]:
 .venv/bin/pip install -e ".[dev]" && .venv/bin/pytest
 ```
 
-33 tests check every tool on small synthetic tables whose right answer is known: no shift vs. a planted shift,
+37 tests check every tool on small synthetic tables whose right answer is known: no shift vs. a planted shift,
 signal vs. pure noise, a random-walk target where random folds must look too good and independent rows where they
 must not, memorised customers, each competition metric and submission format, each kind of broken submission,
 folders whose suggested calls must run as written, plus an end-to-end test that starts the server over stdio and
 calls it as an MCP client.
+
+## Privacy and safety
+
+- Everything runs locally; the tools make no network calls.
+- When an AI agent calls the tools, their output goes to that agent's model, including column summaries and the
+  five most frequent values of each column. Do not point the tools at data you may not share with your model provider.
+- The tools write only `.csv` files (`out_path`, `oof_path`), never through a symlink.
 
 ## Limitations
 
