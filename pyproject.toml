@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tabular-ds-mcp"
+version = "0.2.0"
+description = "MCP server and Python tools to profile, validate and baseline tabular datasets (Kaggle-style)."
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "Yusuf Ömer Erem" }]
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=2",
+    "numpy",
+    "pandas",
+    "scikit-learn>=1.4",
+    "scipy",
+]
+
+[project.optional-dependencies]
+parquet = ["pyarrow"]
+dev = ["pytest"]
+
+[project.scripts]
+tabular-ds-mcp = "tabular_ds_mcp.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
