@@ -1,14 +1,71 @@
 # tabular-ds-mcp
 
-An MCP server that gives AI coding agents (Claude Code, Cursor, Claude Desktop) careful tools for the first hour of
-a tabular ML problem: **inspect** a competition folder, **profile** a table, **compare** train and test, get a
-**cross-validated baseline** with the competition's metric, **explain** the model, **write a submission** and
-**check it** before uploading. The same functions work as a plain Python library, so they also run in a notebook
-(see the [Kaggle walkthrough](examples/kaggle_s6e11_walkthrough.ipynb)).
+[![tests](https://github.com/YusufErem/tabular-ds-mcp/actions/workflows/tests.yml/badge.svg)](https://github.com/YusufErem/tabular-ds-mcp/actions/workflows/tests.yml)
+![Python 3.10–3.13](https://img.shields.io/badge/python-3.10%E2%80%933.13-blue)
+![License: MIT](https://img.shields.io/badge/license-MIT-green)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/YusufErem/tabular-ds-mcp/blob/main/examples/kaggle_s6e11_walkthrough.ipynb)
 
-Three rules are built in: every model score is returned next to a no-skill baseline, nothing is ever fitted on
-rows it is scored on, and when the data is ordered in time or grouped by a key, the tools say so and validate
-accordingly.
+**Honest first-hour checks for tabular ML, as tools your AI coding agent can call.**
+
+An MCP server for Claude Code, Cursor and Claude Desktop, and a plain Python library. It inspects a competition
+folder, profiles the data, compares train and test, gives a cross-validated baseline with the competition's metric
+next to a no-skill baseline, and tells you when random K-fold would overstate your score.
+
+![Demo: python -m tabular_ds_mcp.demo](docs/demo.gif)
+
+<sub>Real output of `python -m tabular_ds_mcp.demo` on synthetic data, rendered by
+[`docs/make_media.py`](docs/make_media.py).</sub>
+
+## Try it in one minute
+
+```bash
+pip install git+https://github.com/YusufErem/tabular-ds-mcp.git      # Python ≥ 3.10
+python -m tabular_ds_mcp.demo
+```
+
+The demo writes synthetic data to `./tabular_ds_mcp_demo`, runs every tool in order and prints the report above
+(about 20 seconds). No account, API key or download is needed. To try it in the browser instead, open the
+[Colab notebook](https://colab.research.google.com/github/YusufErem/tabular-ds-mcp/blob/main/examples/kaggle_s6e11_walkthrough.ipynb).
+
+## Why
+
+![Random K-fold vs time-ordered and group folds](docs/random_vs_structured.png)
+
+Random K-fold assumes every row is independent. When the test rows come later in time, or belong to customers the
+model has never seen, it quietly overstates the score. With `time_col` or `group_col`, `cv_baseline` validates the
+way the test set was built, runs the same model on random splits of the same rows, and reports the gap. Both panels
+come from the demo; on independent rows the two agree and no warning is raised.
+
+Three rules are built in: every score is returned next to a no-skill baseline, nothing is fitted on rows it is
+scored on, and the validation scheme follows the data.
+
+## Use it from an AI agent
+
+```bash
+git clone https://github.com/YusufErem/tabular-ds-mcp.git && cd tabular-ds-mcp
+python3 -m venv .venv && .venv/bin/pip install -e .
+```
+
+**Claude Code**
+
+```bash
+claude mcp add tabular-ds -- "$(pwd)/.venv/bin/tabular-ds-mcp"
+cp -r skills/tabular-playbook ~/.claude/skills/              # optional: the agent workflow below
+```
+
+**Cursor** (`.cursor/mcp.json`) or **Claude Desktop** (`claude_desktop_config.json`)
+
+```json
+{ "mcpServers": { "tabular-ds": { "command": "/absolute/path/to/tabular-ds-mcp/.venv/bin/tabular-ds-mcp" } } }
+```
+
+Then ask, for example: *“Inspect data/, run the checks it suggests and give me a baseline with the competition
+metric.”*
+
+`skills/tabular-playbook/SKILL.md` tells the agent the order of the checks (inspect → profile → compare → baseline
+→ explain → submission), what the thresholds mean (adversarial AUC 0.55 / 0.65, PSI 0.1 / 0.25), when to switch to
+time or group folds, and how to report: every number next to its baseline, every warning reported, no number that
+did not come from a tool.
 
 ## Tools
 
@@ -34,87 +91,43 @@ All tools read CSV or Parquet, detect binary / multiclass / regression targets, 
 | Submission format | the sample submission | probability, value, label, space-separated top-k labels, one column per class |
 | Extra tables, text, images | other tables sharing a column with train; long free-text columns; file-path columns and media files | reported as limitations, with the join key and rows per key |
 
-With time or group folds, `cv_baseline` runs the same model on random splits of the same rows (for time folds,
-with the same training size) and compares fold by fold. Example from the tests, a target that follows a random
-walk over 1,200 days: random splits give RMSE 0.92, time-ordered folds 8.85, and the tool warns that random
-validation overstates the score. On independent rows the two agree and no warning is raised.
-
-## Quick start
-
-```bash
-git clone https://github.com/YusufErem/tabular-ds-mcp.git
-cd tabular-ds-mcp
-python3 -m venv .venv && .venv/bin/pip install -e .          # Python ≥ 3.10
-```
-
-**Claude Code**
-
-```bash
-claude mcp add tabular-ds -- "$(pwd)/.venv/bin/tabular-ds-mcp"
-cp -r skills/tabular-playbook ~/.claude/skills/              # optional: the agent workflow below
-```
-
-**Cursor** (`.cursor/mcp.json`) or **Claude Desktop** (`claude_desktop_config.json`)
-
-```json
-{ "mcpServers": { "tabular-ds": { "command": "/absolute/path/to/tabular-ds-mcp/.venv/bin/tabular-ds-mcp" } } }
-```
-
-Then ask, for example: *“Inspect data/, then run the checks it suggests and give me a baseline with the
-competition metric.”*
-
-## The skill
-
-`skills/tabular-playbook/SKILL.md` tells the agent the order of the checks (inspect → profile → compare →
-baseline → explain → submission), what the thresholds mean (adversarial AUC 0.55 / 0.65, PSI 0.1 / 0.25), when to
-switch to time or group folds, and how to report: every number next to its baseline, every warning reported, no
-number that did not come from a tool.
-
-## Example (synthetic card-fraud data)
-
-`python examples/make_demo_data.py` writes a 40,000-row training table with a 1.3% fraud rate and a test table in
-which `amount` is shifted on purpose. The tools report:
-
-| Step | Result |
-|---|---|
-| Inspect | target `is_fraud`, ID `id`, binary, probability submission, metric hint roc_auc; no time or group structure: “supported” |
-| Profile | binary target, 1.31% positives → warning to report PR-AUC and use stratified folds |
-| Train vs test | adversarial AUC 0.58 (“mild shift”); `amount` has the highest PSI (0.094) and KS p ≈ 0 |
-| CV baseline | ROC-AUC 0.734 (fold SD 0.027) vs 0.5; PR-AUC 0.051 vs 0.013 positive rate |
-| Explain | `hour` and `merchant` matter most; `amount` adds nothing on its own |
-| Submission | all checks pass |
-
 ## Use it from Python
 
 ```python
 import tabular_ds_mcp as t
-plan = t.inspect_competition("data/")
-for call in plan["suggested_calls"]:
-    print(call["tool"], getattr(t, call["tool"])(**call["args"]).get("warnings"))
+
+plan = t.inspect_competition("data/")                    # finds target, ID, task, metric hint, time/group structure
+for call in plan["suggested_calls"]:                     # the calls it suggests already carry the right arguments
+    result = getattr(t, call["tool"])(**call["args"])
+    print(call["tool"], result.get("warnings"))
 ```
+
+The [Kaggle walkthrough notebook](examples/kaggle_s6e11_walkthrough.ipynb) runs every step on Playground Series
+S6E11 (credit-card fraud) and falls back to the synthetic demo data anywhere else.
 
 ## Design
 
 - **Leakage-safe by construction.** Encoders live inside a scikit-learn pipeline that is refitted on every training
   fold; dates are split into numeric parts and categorical columns cast to strings row by row before that.
 - **Baselines everywhere.** `cv_baseline` scores a no-skill model on the same folds, so a number never stands alone.
-- **Validation that matches the test set.** Time-ordered and group folds, compared with random splits, so the
-  tool can say when a random K-fold score cannot be trusted.
+- **Validation that matches the test set.** Time-ordered and group folds, compared fold by fold with random splits of
+  the same rows (for time folds, with the same training size), so the tool can say when a random K-fold score
+  cannot be trusted.
 - **Plain-Python core, thin MCP layer.** `core.py` holds all logic; `server.py` only exposes it, which keeps the tools
   testable and usable outside MCP.
 - **Light dependencies.** pandas, NumPy, SciPy, scikit-learn (HistGradientBoosting) and the MCP SDK.
 
-## Tests (evaluation harness)
+## Tests
 
 ```bash
 .venv/bin/pip install -e ".[dev]" && .venv/bin/pytest
 ```
 
-37 tests check every tool on small synthetic tables whose right answer is known: no shift vs. a planted shift,
+38 tests check every tool on small synthetic tables whose right answer is known: no shift vs. a planted shift,
 signal vs. pure noise, a random-walk target where random folds must look too good and independent rows where they
 must not, memorised customers, each competition metric and submission format, each kind of broken submission,
-folders whose suggested calls must run as written, plus an end-to-end test that starts the server over stdio and
-calls it as an MCP client.
+folders whose suggested calls must run as written, the one-command demo, plus an end-to-end test that starts the
+server over stdio and calls it as an MCP client. They run on every push for Python 3.10, 3.12 and 3.13.
 
 ## Privacy and safety
 

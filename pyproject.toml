@@ -14,7 +14,7 @@ dependencies = [
     "mcp>=2",
     "numpy",
     "pandas",
-    "scikit-learn>=1.4",
+    "scikit-learn>=1.6",          # GroupKFold(shuffle=True)
     "scipy",
 ]
 
@@ -24,6 +24,7 @@ dev = ["pytest"]
 
 [project.scripts]
 tabular-ds-mcp = "tabular_ds_mcp.server:main"
+tabular-ds-mcp-demo = "tabular_ds_mcp.demo:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

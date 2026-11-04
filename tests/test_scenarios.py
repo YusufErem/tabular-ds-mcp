@@ -239,3 +239,13 @@ def test_tools_refuse_to_write_through_a_symlink(tmp_path, customers):
     with pytest.raises(ValueError, match="symlink"):
         t.cv_baseline(_csv(tmp_path / "tr.csv", customers), target="y", id_col="id", n_splits=3, oof_path=str(link))
     assert target.read_text() == "keep me"
+
+
+# ── one-command demo ──────────────────────────────────────────────────────
+def test_demo_runs_end_to_end(tmp_path, capsys):
+    from tabular_ds_mcp import demo
+    out = demo.run(str(tmp_path / "demo"), rows=4000)
+    printed = capsys.readouterr().out
+    assert out["check"]["ok"] and "[6/6]" in printed
+    assert out["time"]["random_split_comparison"]["verdict"] == "random folds overstate the score"
+    assert out["group"]["random_split_comparison"]["verdict"] == "random folds overstate the score"
